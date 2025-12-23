@@ -1,36 +1,67 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import { App, PluginSettingTab, Setting } from "obsidian";
 import MyPlugin from "./main";
 
+export type OutputMode = "separate" | "single";
+
 export interface MyPluginSettings {
-	mySetting: string;
+    patternFolder: string;
+    defaultMode: OutputMode;
+    autoUpdate: boolean;
 }
 
 export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+    patternFolder: "Patterns",
+    defaultMode: "separate",
+    autoUpdate: false,
+};
 
 export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+    plugin: MyPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
+    constructor(app: App, plugin: MyPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
 
-	display(): void {
-		const {containerEl} = this;
+    display(): void {
+        const { containerEl } = this;
+        containerEl.empty();
 
-		containerEl.empty();
+        new Setting(containerEl)
+            .setName("Pattern folder")
+            .setDesc("Folder where workflow pattern YAML files live")
+            .addText((text) =>
+                text
+                    .setPlaceholder("Patterns")
+                    .setValue(this.plugin.settings.patternFolder)
+                    .onChange(async (value) => {
+                        this.plugin.settings.patternFolder = value.trim() || "Patterns";
+                        await this.plugin.saveSettings();
+                    })
+            );
 
-		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
+        new Setting(containerEl)
+            .setName("Default mode")
+            .setDesc("View as separate virtual notes or single note variants")
+            .addDropdown((dd) =>
+                dd
+                    .addOption("separate", "Separate virtual notes")
+                    .addOption("single", "Single note with variants")
+                    .setValue(this.plugin.settings.defaultMode)
+                    .onChange(async (value: OutputMode) => {
+                        this.plugin.settings.defaultMode = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Auto update")
+            .setDesc("Regenerate virtual notes when sources change")
+            .addToggle((toggle) =>
+                toggle.setValue(this.plugin.settings.autoUpdate).onChange(async (value) => {
+                    this.plugin.settings.autoUpdate = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+    }
 }

@@ -1,99 +1,96 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { App, MarkdownView, Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
+import { DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab } from "./settings";
+import { resolvePatternFile, readPattern, getNoteVirtualConfig } from "./virtual/pattern";
+import { assembleVariants } from "./virtual/assembler";
+import { VariantPreviewModal } from "./virtual/previewModal";
+import { VIEW_TYPE_VIRTUAL_NOTE, VirtualNoteView } from "./virtual/view";
 
 // Remember to rename these classes and interfaces!
 
 export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+    settings: MyPluginSettings;
 
-	async onload() {
-		await this.loadSettings();
+    async onload() {
+        await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
+        this.addSettingTab(new SampleSettingTab(this.app, this));
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
+        this.registerView(VIEW_TYPE_VIRTUAL_NOTE, (leaf: WorkspaceLeaf) => new VirtualNoteView(leaf, this));
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+        this.addCommand({
+            id: 'virtual-preview-variants',
+            name: 'Virtual notes: Preview variants',
+            checkCallback: (checking) => this.withActiveNote(async (note) => {
+                const patFile = await resolvePatternFile(this.app, note, this.settings.patternFolder);
+                if (!patFile) return false;
+                if (checking) return true;
+                const pattern = await readPattern(this.app, patFile);
+                if (!pattern) return false;
+                const { sourceAliases } = getNoteVirtualConfig(this.app, note);
+                const variants = await assembleVariants(this.app, note, pattern, sourceAliases);
+                new VariantPreviewModal(this.app, variants, this).open();
+                return true;
+            })
+        });
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
+        this.addCommand({
+            id: 'virtual-open-first-variant',
+            name: 'Virtual notes: Open first variant',
+            checkCallback: (checking) => this.withActiveNote(async (note) => {
+                const patFile = await resolvePatternFile(this.app, note, this.settings.patternFolder);
+                if (!patFile) return false;
+                if (checking) return true;
+                const pattern = await readPattern(this.app, patFile);
+                if (!pattern) return false;
+                const { sourceAliases } = getNoteVirtualConfig(this.app, note);
+                const variants = await assembleVariants(this.app, note, pattern, sourceAliases);
+                if (!variants.length) return false;
+                await this.openVirtualVariant(variants[0]);
+                return true;
+            })
+        });
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
-	}
+        if (this.settings.autoUpdate) {
+            this.registerEvent(this.app.vault.on('modify', async (file) => {
+                if (file instanceof TFile && file.extension === 'md') {
+                    const patFile = await resolvePatternFile(this.app, file, this.settings.patternFolder);
+                    if (patFile) {
+                        const pattern = await readPattern(this.app, patFile);
+                        if (pattern) {
+                            const { sourceAliases } = getNoteVirtualConfig(this.app, file);
+                            // No file generation; optionally refresh any open virtual views
+                            // In a fuller implementation we would track open virtual views and re-render them.
+                        }
+                    }
+                }
+            }));
+        }
+    }
 
 	onunload() {
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
-	}
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+    }
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
+
+    private async withActiveNote<T>(fn: (file: TFile) => Promise<T | boolean>) {
+        const md = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!md || !md.file) return false;
+        return await fn(md.file);
+    }
+
+    async openVirtualVariant(variant: { id: string; markdown: string; name?: string }) {
+        const leaf = this.app.workspace.getLeaf(true);
+        await leaf.setViewState({ type: VIEW_TYPE_VIRTUAL_NOTE, state: {} });
+        const view = leaf.view as VirtualNoteView;
+        await view.setVariant({ id: variant.id, markdown: variant.markdown, name: variant.name, frontmatter: {} });
+        this.app.workspace.revealLeaf(leaf);
+    }
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
+// No file system helpers needed for virtual-only notes.
