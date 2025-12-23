@@ -3,19 +3,19 @@ import MyPlugin from "./main";
 
 export type OutputMode = "separate" | "single";
 
-export interface MyPluginSettings {
+export interface VirtualVariantPluginSettings {
     patternFolder: string;
     defaultMode: OutputMode;
     autoUpdate: boolean;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: VirtualVariantPluginSettings = {
     patternFolder: "Patterns",
     defaultMode: "separate",
     autoUpdate: false,
 };
 
-export class SampleSettingTab extends PluginSettingTab {
+export class VirtualVariantSettingsTab extends PluginSettingTab {
     plugin: MyPlugin;
 
     constructor(app: App, plugin: MyPlugin) {

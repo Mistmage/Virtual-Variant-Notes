@@ -1,19 +1,19 @@
 import { App, MarkdownRenderer, Modal } from "obsidian";
 import { AssembledVariant } from "./types";
-import type MyPlugin from "../main";
+import type VirtualVariantNotesPlugin from "../main";
 
 export class VariantPreviewModal extends Modal {
   private variants: AssembledVariant[];
   private currentIndex = 0;
-  private plugin?: MyPlugin;
+  private plugin?: VirtualVariantNotesPlugin;
 
-  constructor(app: App, variants: AssembledVariant[], plugin?: MyPlugin) {
+  constructor(app: App, variants: AssembledVariant[], plugin?: VirtualVariantNotesPlugin) {
     super(app);
     this.variants = variants;
     this.plugin = plugin;
   }
 
-  onOpen() {
+  async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
 
@@ -26,15 +26,15 @@ export class VariantPreviewModal extends Modal {
     select.value = String(this.currentIndex);
 
     const body = contentEl.createDiv({ cls: "virtual-variant-body" });
-    const render = () => {
+    const render = async () => {
       body.empty();
       const v = this.variants[this.currentIndex];
-      MarkdownRenderer.renderMarkdown(v.markdown, body, "", this);
+      await MarkdownRenderer.render(v.markdown, body, "", this);
     };
 
-    select.onchange = () => {
+    select.onchange = async () => {
       this.currentIndex = Number(select.value);
-      render();
+      await render();
     };
 
     if (this.plugin) {
@@ -49,7 +49,7 @@ export class VariantPreviewModal extends Modal {
       };
     }
 
-    render();
+    await render();
   }
 
   onClose() {

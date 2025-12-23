@@ -1,14 +1,14 @@
 import { ItemView, MarkdownRenderer, WorkspaceLeaf } from "obsidian";
-import type MyPlugin from "../main";
+import type VirtualVariantNotesPlugin from "../main";
 import type { AssembledVariant } from "./types";
 
 export const VIEW_TYPE_VIRTUAL_NOTE = "virtual-note-view";
 
 export class VirtualNoteView extends ItemView {
-  private plugin: MyPlugin;
+  private plugin: VirtualVariantNotesPlugin;
   private variant: AssembledVariant | null = null;
 
-  constructor(leaf: WorkspaceLeaf, plugin: MyPlugin) {
+  constructor(leaf: WorkspaceLeaf, plugin: VirtualVariantNotesPlugin) {
     super(leaf);
     this.plugin = plugin;
   }
@@ -26,7 +26,7 @@ export class VirtualNoteView extends ItemView {
   }
 
   async onOpen() {
-    this.render();
+    await this.render();
   }
 
   async onClose() {
@@ -43,6 +43,6 @@ export class VirtualNoteView extends ItemView {
     const { contentEl } = this;
     contentEl.empty();
     if (!this.variant) return;
-    await MarkdownRenderer.renderMarkdown(this.variant.markdown, contentEl, "", this);
+    await MarkdownRenderer.render(this.variant.markdown, contentEl, "", this);
   }
 }

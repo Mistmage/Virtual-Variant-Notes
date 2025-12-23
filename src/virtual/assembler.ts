@@ -156,14 +156,3 @@ function nextHeadingEndOffset(
 function normalizeHeadingPath(path: string): string {
   return path.replace(/^#+\s*/, "").trim();
 }
-
-function findSectionForHeading(
-  sections: { start: { offset: number }; end: { offset: number }; type: string }[],
-  headingStart: number
-) {
-  // sections are ordered; find section starting at or after headingStart
-  for (const s of sections) {
-    if (s.type === "heading" && s.start.offset >= headingStart) return s;
-  }
-  return null;
-}
