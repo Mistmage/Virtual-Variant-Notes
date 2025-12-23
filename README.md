@@ -1,90 +1,85 @@
-# Obsidian Sample Plugin
+# Virtual Variant Notes
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Create virtual versions of notes assembled from parts of other notes. Virtual notes behave like regular notes visually, but they are not files; they render in dedicated views and in a preview modal.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
+- Assemble variants from headings, blocks, sections, and frontmatter of source notes.
+- Reference a YAML pattern via frontmatter to define variants and sources.
+- Preview variants and open each as an in-memory virtual note view.
+- Optionally auto-refresh virtual views when source notes change.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## Usage
+- Add frontmatter to a note:
+  ```
+  ---
+  virtual_workflow: my-note-variants
+  virtual_sources:
+    ref: Notes/Reference.md
+  ---
+  ```
+- Create `Patterns/my-note-variants.yml`:
+  ```
+  name: My Note Variants
+  sources:
+    ref: Notes/Reference.md
+  variants:
+    - id: short
+      name: Short Version
+      frontmatter:
+        type: short
+      assemble:
+        - source: current
+          include:
+            headings: ["Summary"]
+            blocks: ["b123abc"]
+            frontmatter: ["tags"]
+    - id: full
+      name: Full Version
+      assemble:
+        - source: current
+          include:
+            all: true
+        - source: ref
+          include:
+            headings: ["Appendix"]
+  ```
+- Run commands:
+  - `Virtual notes: Preview variants` to browse and open a variant.
+  - `Virtual notes: Open first variant` to open directly in a leaf.
 
-## First time developing plugins?
+## Settings
+- Pattern folder: default `Patterns`
+- Default mode: separate virtual notes or single note variants
+- Auto update: refresh virtual views on source changes
 
-Quick starting guide for new plugin devs:
+## Warnings
+- Virtual notes are not files. They do not persist on disk and do not appear in file-based queries that read the vault file system.
+- Frontmatter merging may overwrite keys. Variant-defined frontmatter takes precedence over copied source keys; ensure namespacing to avoid collisions.
+- Pattern path normalization: if `virtual_workflow` omits extension, `.yml` in the Pattern folder is assumed. Provide explicit paths if your structure differs.
+- Source aliases: missing or mistyped aliases will result in skipped content; verify `sources` in the pattern and `virtual_sources` in the note frontmatter.
+- Headings detection uses Obsidian’s metadata cache. If heading text is duplicated within a file, only the first match is used for `headings: ["Title"]`.
+- Blocks rely on Obsidian block IDs. If a block isn’t indexed in the cache yet, it may be skipped until the note is saved and the cache updates.
+- Deprecated API: older `MarkdownRenderer.renderMarkdown` is replaced internally; Obsidian may deprecate APIs over time. Keep to the current app version in `manifest.json`.
+- Performance: assembling across large files and multiple variants may be expensive. Enable `Auto update` cautiously in large vaults.
+- Mobile differences: Obsidian mobile may handle views differently; features that rely on desktop-only APIs won’t be available.
+- Security: do not include secrets in frontmatter or patterns. Virtual notes render content verbatim; sensitive data can surface unexpectedly.
+- Compatibility: plugins that transform Markdown at render-time may affect virtual views. Test with your plugin set.
+- Staleness: the metadata cache can lag after rapid edits. If content appears outdated, save the source note and re-open the virtual variant.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Build
+- Node 18+
+- `npm install`
+- Development: `npm run dev`
+- Production bundle: `npm run build` or `node esbuild.config.mjs production`
 
-## Releasing new releases
+## Install
+- Copy `manifest.json`, `main.js`, `styles.css` (optional) to:
+  - `<Vault>/.obsidian/plugins/virtual-variant-notes/`
+- Enable the plugin in Obsidian.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
-
-## API Documentation
-
-See https://docs.obsidian.md
+## Release
+- Tag the exact semantic version (no leading `v`).
+- Create a GitHub release and attach:
+  - `manifest.json`
+  - `main.js`
+  - `styles.css` (optional)
