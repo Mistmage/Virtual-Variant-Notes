@@ -23,15 +23,16 @@ export default class VirtualVariantNotesPlugin extends Plugin {
             checkCallback: (checking) => {
                 const md = this.app.workspace.getActiveViewOfType(MarkdownView);
                 if (!md || !md.file) return false;
-                const cfg = getNoteVirtualConfig(this.app, md.file);
+                const file = md.file as TFile;
+                const cfg = getNoteVirtualConfig(this.app, file);
                 if (!cfg.patternPath) return false;
                 if (checking) return true;
                 void (async () => {
-                    const patFile = await resolvePatternFile(this.app, md.file, this.settings.patternFolder);
+                    const patFile = await resolvePatternFile(this.app, file, this.settings.patternFolder);
                     if (!patFile) return;
                     const pattern = await readPattern(this.app, patFile);
                     if (!pattern) return;
-                    const variants = await assembleVariants(this.app, md.file, pattern, cfg.sourceAliases);
+                    const variants = await assembleVariants(this.app, file, pattern, cfg.sourceAliases);
                     new VariantPreviewModal(this.app, variants, this).open();
                 })();
                 return true;
@@ -44,17 +45,19 @@ export default class VirtualVariantNotesPlugin extends Plugin {
             checkCallback: (checking) => {
                 const md = this.app.workspace.getActiveViewOfType(MarkdownView);
                 if (!md || !md.file) return false;
-                const cfg = getNoteVirtualConfig(this.app, md.file);
+                const file = md.file as TFile;
+                const cfg = getNoteVirtualConfig(this.app, file);
                 if (!cfg.patternPath) return false;
                 if (checking) return true;
                 void (async () => {
-                    const patFile = await resolvePatternFile(this.app, md.file, this.settings.patternFolder);
+                    const patFile = await resolvePatternFile(this.app, file, this.settings.patternFolder);
                     if (!patFile) return;
                     const pattern = await readPattern(this.app, patFile);
                     if (!pattern) return;
-                    const variants = await assembleVariants(this.app, md.file, pattern, cfg.sourceAliases);
-                    if (!variants.length) return;
-                    await this.openVirtualVariant(variants[0]);
+                    const variants = await assembleVariants(this.app, file, pattern, cfg.sourceAliases);
+                    const first = variants[0];
+                    if (!first) return;
+                    await this.openVirtualVariant(first);
                 })();
                 return true;
             }

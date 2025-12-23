@@ -43,6 +43,6 @@ export class VirtualNoteView extends ItemView {
     const { contentEl } = this;
     contentEl.empty();
     if (!this.variant) return;
-    await MarkdownRenderer.render(this.variant.markdown, contentEl, "", this);
+    await MarkdownRenderer.render(this.app, this.variant.markdown, contentEl, "", this);
   }
 }

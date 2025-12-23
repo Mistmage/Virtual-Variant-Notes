@@ -1,4 +1,4 @@
-import { App, MarkdownRenderer, Modal } from "obsidian";
+import { App, MarkdownRenderer, Modal, Component } from "obsidian";
 import { AssembledVariant } from "./types";
 import type VirtualVariantNotesPlugin from "../main";
 
@@ -29,7 +29,11 @@ export class VariantPreviewModal extends Modal {
     const render = async () => {
       body.empty();
       const v = this.variants[this.currentIndex];
-      await MarkdownRenderer.render(v.markdown, body, "", this);
+      if (!v) {
+        body.createDiv({ text: "No variants available" });
+        return;
+      }
+      await MarkdownRenderer.render(this.app, v.markdown, body, "", this as unknown as Component);
     };
 
     select.onchange = async () => {
